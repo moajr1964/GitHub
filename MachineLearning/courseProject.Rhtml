@@ -1,0 +1,158 @@
+<html>
+
+<h1>CourseProjetc Machine Learning</h1>
+
+
+<h2>Moacyr M Cardoso Jr</h2>
+
+
+<body>
+
+<p>Background:
+
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). </p>
+
+<blockquote><p>Data
+
+The training data for this project are available here: 
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+and the test data are available here: 
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment. </p>
+
+<blockquote><p>What you should submit
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases. </p>
+
+Downloading the training archive
+
+<!--begin.rcode
+require(downloader)
+fileUrl='https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv'
+download(fileUrl, "./acs.csv", mode = "wb")
+acs<-read.csv(".\\acs.csv")
+end.rcode-->
+
+Downloading the testing set
+
+<!--begin.rcode
+fileUrl='https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv'
+download(fileUrl, "./test.csv", mode = "wb")
+testa<-read.csv(".\\test.csv")
+end.rcode-->
+
+
+Libraries necessary:
+
+
+<!--begin.rcode
+library(caret)
+end.rcode-->
+
+Feature selection: 
+
+reading the original paper I realized that only "pure" variables, were plausible for this classification, so I have excluded all stats, so the important variables to keep are:
+
+roll_belt, pitch_belt, yaw_belt, gyros_belt_x, gyros_belt_y, gyros_belt_z, accel_belt_x, accel_belt_y, accel_belt_z
+magnet_belt_x, magnet_belt_y, magnet_belt_z, roll_arm, pitch_arm, yaw_arm, gyros_arm_x, gyros_arm_y, gyros_arm_z
+accel_arm_x, accel_arm_y, accel_arm_z, magnet_arm_x, magnet_arm_y, magnet_arm_z, roll_dumbbell, pitch_dumbbell
+yaw_dumbbell,gyros_dumbbell_x,gyros_dumbbell_y,gyros_dumbbell_z,accel_dumbbell_x,accel_dumbbell_y,accel_dumbbell_z
+magnet_dumbbell_x,magnet_dumbbell_y,magnet_dumbbell_z,roll_forearm,pitch_forearm,yaw_forearm,gyros_forearm_x
+gyros_forearm_y,gyros_forearm_z,accel_forearm_x,accel_forearm_y,accel_forearm_z,,magnet_forearm_x,magnet_forearm_y,magnet_forearm_z
+
+Training and Testind data sets:
+
+<!--begin.rcode
+training<-cbind(acs[,8:10], acs[,37:48], acs[, 60:68], acs[,84:86], acs[,113:124], acs[,151:160])
+testing<-cbind(testa[,8:10], testa[,37:48], testa[, 60:68], testa[,84:86], testa[,113:124], testa[,151:159])
+end.rcode-->
+
+
+Testing the variability of features. Using "nearZeroVar" I could see that all variables can contribute to the model.
+
+<!--begin.rcode
+nsv <- nearZeroVar(training, saveMetrics=TRUE)
+nsv
+end.rcode-->
+
+The training set is very large (19,622 entries). I decided to split the original training set into a smaller one (about 1/3), and then split into a training set (60\%) and a testing set (40\%).
+
+
+# Divide the given training set into a smaller set.
+<!--begin.rcode
+set.seed(123)
+train_1 <- createDataPartition(y=training$classe, p=0.33, list=FALSE)
+training_1 <- training[train_1,]
+end.rcode-->
+
+
+# Divide small data set into training and test sets (60:40).
+<!--begin.rcode
+set.seed(123)
+inTrain <- createDataPartition(y=training_1$classe, p=0.6, list=FALSE)
+training_S_1 <- training_1[inTrain,]
+testing_S_1 <- training_1[-inTrain,]
+end.rcode-->
+
+ 
+Analyzing all methods that we have studied, I decided to try "random Forest" 
+
+I have used Cross validation with 4 repetitions. The data was preprocessed to center and scale the data.
+
+<!--begin.rcode
+set.seed(123)
+modFit_1 <- train(training_S_1$classe ~ ., method="rf",
+               trControl=trainControl(method = "cv", number = 4),
+               data=training_S_1,
+               preProcess=c("center", "scale"))
+           
+print(modFit_1, digits=3)
+end.rcode-->
+
+
+# Predicition: modFit_1 on testing set 1.
+<!--begin.rcode
+predictions_1 <- predict(modFit_1, newdata=testing_S_1)
+print(confusionMatrix(predictions_1, testing_S_1$classe), digits=4)
+end.rcode-->
+
+<p>We can see that the overall accuracy is 0.9718, and the expected error of classification (misclassification) is 
+1-0.9718 = <strong>0.0282 or 2.82%</strong> of error (97.18% accuracy).</p>
+
+
+<p>#End of Model validation.</p>
+
+
+Here are the predictions for the testing set.
+
+
+<p># Prediciton using ModFit_1 on testing set</p>
+<!--begin.rcode
+pred<-predict(modFit_1, testing)
+print(pred)
+end.rcode-->
+
+
+And then the function suggested by instructor to generate 20 archives to upload for grading.
+
+<p># Function to generate 20 different archives for submission</p>
+<!--begin.rcode
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+testPC<-as.character(pred)
+pml_write_files(testPC)
+end.rcode-->
+
+
+</body>
+</html>
